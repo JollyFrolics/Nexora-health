@@ -1,0 +1,8 @@
+{
+  "appTitle": "Telemedical App",
+  "login": "Login",
+  "signup": "Sign Up",
+  "bookAppointment": "Book Appointment",
+  "doctor": "Doctor",
+  "patient": "Patient"
+}
