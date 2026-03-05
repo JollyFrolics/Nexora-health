@@ -1,9 +1,24 @@
 {
   "appTitle": "Telemedical App",
   "login": "Login",
+  "email":"Email",
+  "password":"Password",
+  "donthaveanaccout":"Don't have an account ?",
   "signup": "Sign Up",
   "bookAppointment": "Book Appointment",
   "doctor": "Doctor",
   "patient": "Patient",
-  "homeScreen":"Home Screen"
+  "homeScreen":"Home Screen",
+  "name":"Full Name",
+  "phone":"Phone",
+  "age":"Age",
+  "gender":"Gender",
+  "address":"Address",
+  "alreadyhaveanaccount":"Already Have An Account ?",
+  "male":"Male",
+  "female":"Female",
+  "others":"Other",
+  "confirmpassword":"Confirm Password",
+  "next":"Next",
+  "back":"Back"
 }

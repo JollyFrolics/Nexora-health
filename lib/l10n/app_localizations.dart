@@ -107,6 +107,24 @@ abstract class AppLocalizations {
   /// **'Login'**
   String get login;
 
+  /// No description provided for @email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get email;
+
+  /// No description provided for @password.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get password;
+
+  /// No description provided for @donthaveanaccout.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t have an account ?'**
+  String get donthaveanaccout;
+
   /// No description provided for @signup.
   ///
   /// In en, this message translates to:
@@ -136,6 +154,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Home Screen'**
   String get homeScreen;
+
+  /// No description provided for @name.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Name'**
+  String get name;
+
+  /// No description provided for @phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get phone;
+
+  /// No description provided for @age.
+  ///
+  /// In en, this message translates to:
+  /// **'Age'**
+  String get age;
+
+  /// No description provided for @gender.
+  ///
+  /// In en, this message translates to:
+  /// **'Gender'**
+  String get gender;
+
+  /// No description provided for @address.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get address;
+
+  /// No description provided for @alreadyhaveanaccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Already Have An Account ?'**
+  String get alreadyhaveanaccount;
+
+  /// No description provided for @male.
+  ///
+  /// In en, this message translates to:
+  /// **'Male'**
+  String get male;
+
+  /// No description provided for @female.
+  ///
+  /// In en, this message translates to:
+  /// **'Female'**
+  String get female;
+
+  /// No description provided for @others.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get others;
+
+  /// No description provided for @confirmpassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Password'**
+  String get confirmpassword;
+
+  /// No description provided for @next.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get next;
+
+  /// No description provided for @back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get back;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

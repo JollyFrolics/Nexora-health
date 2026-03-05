@@ -1,10 +1,25 @@
 {
   "appTitle": "टेलिमेडिकल एप",
-  "login": "लगइन",
+  "login": "लगइन ",
+  "email":"ईमेल",
+  "password":"पासवर्ड",
+  "donthaveanaccout":"खाता छैन?",
   "signup": "साइन अप",
   "bookAppointment": "अपोइन्टमेन्ट बुक गर्नुहोस्",
   "doctor": "डाक्टर",
   "patient": "बिरामी",
-  "homeScreen": "होम स्क्रिन"
+  "homeScreen": "होम स्क्रिन",
+  "name":"पूरा नाम ",
+  "phone":"फोन",
+  "age":"उमेर ",
+  "gender":"लिङ्ग ",
+  "address":"ठेगाना ",
+  "alreadyhaveanaccount":"पहिले नै खाता छ ?",
+    "male":"पुरुष",
+  "female":"महिला",
+  "others":"अन्य",
+  "confirmpassword":"पासवर्ड पुष्टि गर्नुहोस्",
+  "next":"अर्को",
+  "back":"फिर्ता"
 
 }

@@ -1,14 +1,11 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:patient_app/app_constants.dart';
 import 'package:patient_app/home_screen.dart';
-import 'package:patient_app/l10n/app_localizations.dart';
-
+import 'package:patient_app/login_screen.dart';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
-
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
@@ -16,32 +13,31 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   int _percentage = 0;
   late final Timer _timer;
-@override
-void initState(){
-  super.initState();
-  // Future.delayed(const Duration(seconds: 30),(){
-  //   if(mounted){
-  //     Get.offAll(()=>const HomeScreen());
-  //   }
+  @override
+  void initState() {
+    super.initState();
+    // Future.delayed(const Duration(seconds: 30),(){
+    //   if(mounted){
+    //     Get.offAll(()=>const HomeScreen());
+    //   }
+    // });
+    _timer = Timer.periodic(const Duration(milliseconds: 10), (timer) {
+      if (_percentage < 100) {
+        setState(() {
+          _percentage += 1;
+        });
+      } else {
+        timer.cancel();
+        Get.offAll(() =>  LoginScreen());
+      }
+    });
+  }
 
-  // });
-  _timer = Timer.periodic(const Duration(milliseconds: 10), (timer) {
-    if (_percentage < 100) {
-      setState(() {
-        _percentage += 1;
-      });
-    } else {
-      timer.cancel();
-      Get.offAll(() => const HomeScreen());
-    }
-  });
-}
-@override
-void dispose(){
-  _timer.cancel();
-  super.dispose();
-}
-
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,28 +47,34 @@ void dispose(){
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset("assets/images/gov_logo.webp",width: 150,height: 150,),
+            Image.asset("assets/images/gov_logo.webp", width: 150, height: 150),
             const SizedBox(height: 20),
             Text(
-              AppConstants.nepalSarkar,style: const TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            Text(AppConstants.govtOfNepal,style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-            ),),
-            Text(AppConstants.swasthyaposttelemedicine,
+              AppConstants.nepalSarkar,
               style: const TextStyle(
                 fontSize: 30,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-            Text(AppConstants.telemedicine,
+            Text(
+              AppConstants.govtOfNepal,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+              ),
+            ),
+            Text(
+              AppConstants.swasthyaposttelemedicine,
+              style: const TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            Text(
+              AppConstants.telemedicine,
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -80,18 +82,22 @@ void dispose(){
               ),
             ),
             const SizedBox(height: 90),
-            
+
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 170),
-              child: LinearProgressIndicator(value: _percentage / 100)), 
-                        const SizedBox(height: 10),
+              child: LinearProgressIndicator(value: _percentage / 100),
+            ),
+            const SizedBox(height: 10),
 
             Text(
               'Loading... $_percentage%',
-              style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
-
         ),
       ),
     );
