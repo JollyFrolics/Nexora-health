@@ -16,27 +16,29 @@ class HomeScreen extends StatelessWidget {
         automaticallyImplyLeading:
             false, // Prevents a back button on the Home Screen
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            AppLocalizations.of(context)!.login,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.amber,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              AppLocalizations.of(context)!.login,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.amber,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          LanguageToggleButton( ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              Get.to(()=>const ProfileScreen());
-            },
-            child: const Text('Go to Profile'),
-          ),
-        ],
+            const SizedBox(height: 20),
+            LanguageToggleButton( ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Get.to(()=>const ProfileScreen());
+              },
+              child: const Text('Go to Profile'),
+            ),
+          ],
+        ),
       ),
     );
   }
