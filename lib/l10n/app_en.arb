@@ -4,5 +4,6 @@
   "signup": "Sign Up",
   "bookAppointment": "Book Appointment",
   "doctor": "Doctor",
-  "patient": "Patient"
+  "patient": "Patient",
+  "homeScreen":"Home Screen"
 }

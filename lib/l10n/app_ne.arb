@@ -4,5 +4,7 @@
   "signup": "साइन अप",
   "bookAppointment": "अपोइन्टमेन्ट बुक गर्नुहोस्",
   "doctor": "डाक्टर",
-  "patient": "बिरामी"
+  "patient": "बिरामी",
+  "homeScreen": "होम स्क्रिन"
+
 }

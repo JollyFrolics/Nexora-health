@@ -130,6 +130,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Patient'**
   String get patient;
+
+  /// No description provided for @homeScreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Screen'**
+  String get homeScreen;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

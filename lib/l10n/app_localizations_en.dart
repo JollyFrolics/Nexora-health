@@ -25,4 +25,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get patient => 'Patient';
+
+  @override
+  String get homeScreen => 'Home Screen';
 }

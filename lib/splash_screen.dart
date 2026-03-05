@@ -1,28 +1,46 @@
-
-
 import 'package:flutter/material.dart';
-import 'package:patient_app/widgets/lineargradient.dart';
+import 'package:get/get.dart';
+import 'package:patient_app/home_screen.dart';
+import 'package:patient_app/l10n/app_localizations.dart';
 
-class SplashScreen extends StatelessWidget{
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+@override
+void initState(){
+  super.initState();
+  Future.delayed(const Duration(seconds: 3),(){
+    if(mounted){
+      Get.offAll(()=>const HomeScreen());
+    }
+
+  });
+}
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GradientContainer(
-        colors1: [Colors.blueAccent],
-        colors2: [Colors.purpleAccent],
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset('assets/images/splash.png', width: 200, height: 200),
-              const SizedBox(height: 20),
-              const Text(
-                'Welcome to Patient App',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              AppLocalizations.of(context)!.login,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.amber,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 10),
+          ],
         ),
       ),
     );
