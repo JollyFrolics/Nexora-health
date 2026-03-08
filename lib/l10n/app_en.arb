@@ -20,5 +20,6 @@
   "others":"Other",
   "confirmpassword":"Confirm Password",
   "next":"Next",
-  "back":"Back"
+  "back":"Back",
+  "loading":"Loading"
 }

@@ -73,4 +73,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get back => 'Back';
+
+  @override
+  String get loading => 'Loading';
 }

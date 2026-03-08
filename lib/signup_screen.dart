@@ -6,10 +6,12 @@ import 'package:lottie/lottie.dart';
 import 'package:patient_app/app_constants.dart';
 import 'package:patient_app/controller/internet_status_controller.dart';
 import 'package:patient_app/l10n/app_localizations.dart';
+import 'package:patient_app/utils/logging.dart';
 import 'package:patient_app/widgets/connectivity_icon.dart';
 import 'package:patient_app/widgets/dropdown_inputfield.dart';
 import 'package:patient_app/widgets/input_field.dart';
 import 'package:patient_app/widgets/language_toggle_button.dart';
+import 'package:patient_app/widgets/loading_overlay.dart';
 import 'package:patient_app/widgets/login_signup_button.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -45,8 +47,6 @@ class _SignupScreenState extends State<SignupScreen>
 
   late TabController tabController;
 
-  OverlayEntry? loadingOverlayEntry;
-
   @override
   void initState() {
     super.initState();
@@ -59,44 +59,13 @@ class _SignupScreenState extends State<SignupScreen>
     super.dispose();
   }
 
-  void createLoadingOverlay() {
-    removeLoadingOverlay();
-
-    assert(loadingOverlayEntry == null);
-
-    loadingOverlayEntry = OverlayEntry(
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Align(
-            alignment: Alignment.center,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                CircularProgressIndicator(color: Colors.blue),
-                Text("Loading"),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
-    Overlay.of(context, debugRequiredFor: widget).insert(loadingOverlayEntry!);
-  }
-
-  void removeLoadingOverlay() {
-    loadingOverlayEntry?.remove();
-    loadingOverlayEntry?.dispose();
-    loadingOverlayEntry = null;
-  }
 
   void sendSignUpData() {
+    logger("Sending sign up data", "Nexora Sign up");
     loading = true;
-    createLoadingOverlay();
+    LoadingOverlay.show(context, widget);
 
     loading = false;
-    removeLoadingOverlay();
   }
 
   @override

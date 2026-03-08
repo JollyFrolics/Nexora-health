@@ -73,4 +73,7 @@ class AppLocalizationsNe extends AppLocalizations {
 
   @override
   String get back => 'फिर्ता';
+
+  @override
+  String get loading => 'लोड हुँदै';
 }
