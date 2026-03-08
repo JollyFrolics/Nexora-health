@@ -13,7 +13,7 @@ import 'package:patient_app/widgets/language_toggle_button.dart';
 import 'package:patient_app/widgets/login_signup_button.dart';
 
 class SignupScreen extends StatefulWidget {
-  SignupScreen({super.key});
+  const SignupScreen({super.key});
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
@@ -41,7 +41,12 @@ class _SignupScreenState extends State<SignupScreen>
 
   String? selectedGender;
 
+  bool loading = false;
+
   late TabController tabController;
+
+  OverlayEntry? loadingOverlayEntry;
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +57,46 @@ class _SignupScreenState extends State<SignupScreen>
   void dispose() {
     tabController.dispose();
     super.dispose();
+  }
+
+  void createLoadingOverlay() {
+    removeLoadingOverlay();
+
+    assert(loadingOverlayEntry == null);
+
+    loadingOverlayEntry = OverlayEntry(
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Align(
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                CircularProgressIndicator(color: Colors.blue),
+                Text("Loading"),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    Overlay.of(context, debugRequiredFor: widget).insert(loadingOverlayEntry!);
+  }
+
+  void removeLoadingOverlay() {
+    loadingOverlayEntry?.remove();
+    loadingOverlayEntry?.dispose();
+    loadingOverlayEntry = null;
+  }
+
+  void sendSignUpData() {
+    loading = true;
+    createLoadingOverlay();
+
+    loading = false;
+    removeLoadingOverlay();
   }
 
   @override
@@ -335,10 +380,8 @@ class _SignupScreenState extends State<SignupScreen>
                           ),
                         ),
                         LoginSignupButton(
-                          text: AppLocalizations.of(context)!.back,
-                          onPressed: () {
-                            tabController.animateTo(0); // move to tab 1
-                          },
+                          text: AppLocalizations.of(context)!.signup,
+                          onPressed: sendSignUpData,
                         ),
                       ],
                     ),
