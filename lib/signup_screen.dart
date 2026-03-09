@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:get/get_state_manager/get_state_manager.dart';
 import 'package:patient_app/app_constants.dart';
@@ -15,6 +18,7 @@ import 'package:patient_app/widgets/language_toggle_button.dart';
 import 'package:patient_app/widgets/loading_overlay.dart';
 import 'package:patient_app/widgets/login_signup_button.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -74,6 +78,33 @@ class _SignupScreenState extends State<SignupScreen>
       Get.snackbar('Sign Up Failed', e.toString());
     } finally {
       setState(() => loading = false);
+    }
+  }
+
+  continueWithGoogle() async {
+    try {
+      GoogleSignIn signIn = GoogleSignIn.instance;
+      await signIn.initialize(
+        serverClientId: dotenv.env["web_clientid"],
+        clientId: Platform.isAndroid
+            ? dotenv.env['android_clientid']
+            : dotenv.env["ios_clientid"],
+      );
+      GoogleSignInAccount account = await signIn.authenticate();
+      String idToken = account.authentication.idToken ?? "";
+      final authorization = await account.authorizationClient
+          .authorizationForScopes(["email", "profile"])?? await account.authorizationClient.authorizeScopes(["email","profile"]);
+      final result = await supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: authorization.accessToken,
+        
+      );
+       if (result.user != null) {
+        Get.offAll(() => LoginScreen());
+      }
+    } catch (e) {
+      print(e.toString());
     }
   }
 
@@ -315,7 +346,10 @@ class _SignupScreenState extends State<SignupScreen>
                           ImageButton(
                             imagePath: "assets/images/google.png",
                             text: "Google",
-                            onPressed: () {},
+                            onPressed: () {
+                              continueWithGoogle();
+                              
+                            },
                           ),
                           const SizedBox(height: 30),
                         ],
