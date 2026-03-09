@@ -15,6 +15,23 @@ class LoginSignupButton extends StatelessWidget {
       width: double.infinity,
       height: 40,
       margin: const EdgeInsets.symmetric(horizontal: 100),
-      child: ElevatedButton(onPressed: onPressed,style: ElevatedButton.styleFrom(backgroundColor: AppConstants.primaryColor,shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))), child: Text(text,style: const TextStyle(fontSize: 18,fontWeight: FontWeight.bold,color: Colors.white),)));
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppConstants.primaryColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
   }
 }

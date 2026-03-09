@@ -2,12 +2,13 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_state_manager/get_state_manager.dart';
-import 'package:lottie/lottie.dart';
 import 'package:patient_app/app_constants.dart';
 import 'package:patient_app/controller/internet_status_controller.dart';
 import 'package:patient_app/l10n/app_localizations.dart';
+import 'package:patient_app/login_screen.dart';
 import 'package:patient_app/widgets/connectivity_icon.dart';
 import 'package:patient_app/widgets/dropdown_inputfield.dart';
+import 'package:patient_app/widgets/image_button.dart';
 import 'package:patient_app/widgets/input_field.dart';
 import 'package:patient_app/widgets/language_toggle_button.dart';
 import 'package:patient_app/widgets/login_signup_button.dart';
@@ -61,6 +62,9 @@ class _SignupScreenState extends State<SignupScreen>
         backgroundColor: AppConstants.primaryColor,
         bottom: TabBar(
           controller: tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: AppConstants.whiteColor,
           tabs: [
             Tab(text: "Personal Info"),
             Tab(text: "Account Info"),
@@ -243,7 +247,9 @@ class _SignupScreenState extends State<SignupScreen>
                                 ),
                               ),
                               TextButton(
-                                onPressed: () {},
+                                onPressed: () {
+                                  Get.offAll(LoginScreen());
+                                },
                                 child: Text(
                                   AppLocalizations.of(context)!.login,
                                   style: const TextStyle(
@@ -255,12 +261,15 @@ class _SignupScreenState extends State<SignupScreen>
                               ),
                             ],
                           ),
-                          // ElevatedButton(
-                          //   onPressed: () {
-                          //     tabController.animateTo(1); // move to tab 2
-                          //   },
-                          //   child: const Text("Next"),
-                          // ),
+                          const SizedBox(height: 10),
+                          Text("or signup with",style: TextStyle(fontSize: 14,fontWeight: FontWeight.bold),),
+                          const SizedBox(height: 10),
+                          ImageButton(
+                            imagePath: "assets/images/google.png",
+                            text: "Google",
+                            onPressed: () {},
+                          ),
+                          const SizedBox(height: 30),
                         ],
                       ),
                     ),
@@ -335,10 +344,8 @@ class _SignupScreenState extends State<SignupScreen>
                           ),
                         ),
                         LoginSignupButton(
-                          text: AppLocalizations.of(context)!.back,
-                          onPressed: () {
-                            tabController.animateTo(0); // move to tab 1
-                          },
+                          text: AppLocalizations.of(context)!.signup,
+                          onPressed: () {},
                         ),
                       ],
                     ),
