@@ -5,18 +5,62 @@ import 'package:get/get_state_manager/get_state_manager.dart';
 import 'package:lottie/lottie.dart';
 import 'package:patient_app/app_constants.dart';
 import 'package:patient_app/controller/internet_status_controller.dart';
+import 'package:patient_app/home_screen.dart';
 import 'package:patient_app/l10n/app_localizations.dart';
 import 'package:patient_app/signup_screen.dart';
 import 'package:patient_app/widgets/connectivity_icon.dart';
 import 'package:patient_app/widgets/input_field.dart';
 import 'package:patient_app/widgets/language_toggle_button.dart';
 import 'package:patient_app/widgets/login_signup_button.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
+  // ignore: prefer_const_constructors_in_immutables
   LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
   final ConnectivityController controller = Get.put(ConnectivityController());
+
   final emailcontroller = TextEditingController();
+
   final passwordcontroller = TextEditingController();
+
+  bool loading = false;
+  final supabase = Supabase.instance.client;
+
+  login() async {
+   if (emailcontroller.text.trim().isEmpty){
+    Get.snackbar("Error", "Please enter your email");
+    return;
+   }
+   if(passwordcontroller.text.trim().isEmpty){
+    Get.snackbar("Error","Please enter your password");
+    return;
+   }
+   setState(() {
+     loading= true;
+   });
+    try {
+      final result = await supabase.auth.signInWithPassword(
+        email: emailcontroller.text.trim(),
+        password: passwordcontroller.text,
+      );
+      if (result.user != null) {
+        Get.offAll(() => HomeScreen());
+      }
+    } catch (e) {
+      print(e.toString());
+    } finally {
+      setState(() {
+        loading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,7 +125,11 @@ class LoginScreen extends StatelessWidget {
                 children: [
                   Text(
                     AppLocalizations.of(context)!.email,
-                    style: const TextStyle(fontSize: 14, color: Colors.black87,fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w600,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   InputField(
@@ -92,21 +140,30 @@ class LoginScreen extends StatelessWidget {
                   const SizedBox(height: 20),
                   Text(
                     AppLocalizations.of(context)!.password,
-                    style: const TextStyle(fontSize: 14, color: Colors.black87,fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w600,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   InputField(
                     hintText: "xxxxxxxx",
-                    
+
                     obscureText: true,
                     controller: passwordcontroller,
                   ),
                 ],
               ),
             ),
-             LoginSignupButton(text: AppLocalizations.of(context)!.login, onPressed: (){}),
+            LoginSignupButton(
+              text: AppLocalizations.of(context)!.login,
+              onPressed: () {
+                login();
+              },
+            ),
             const SizedBox(height: 20),
-             Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
 
               children: [
@@ -115,16 +172,20 @@ class LoginScreen extends StatelessWidget {
                   style: const TextStyle(fontSize: 14, color: Colors.black54),
                 ),
                 TextButton(
-                  onPressed:(){
-                    Get.offAll(()=>SignupScreen());
+                  onPressed: () {
+                    Get.offAll(() => SignupScreen());
                   },
                   child: Text(
                     AppLocalizations.of(context)!.signup,
-                    style: const TextStyle(fontSize: 14, color: AppConstants.secondaryColor,fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppConstants.secondaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                )
+                ),
               ],
-             )
+            ),
           ],
         ),
       ),

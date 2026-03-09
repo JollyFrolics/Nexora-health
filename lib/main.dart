@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:get/route_manager.dart';
 import 'package:patient_app/splash_screen.dart';
 import 'package:patient_app/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
 
+  WidgetsFlutterBinding.ensureInitialized();
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String languageCode = prefs.getString("language") ?? "en";
-
+  await Supabase.initialize(
+    url: dotenv.env['supabase_url']!,
+    anonKey: dotenv.env['supabase_anonKey']!,
+  );
   runApp(PatientApp(languageCode: languageCode));
 }
 

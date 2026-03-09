@@ -14,6 +14,7 @@ import 'package:patient_app/widgets/input_field.dart';
 import 'package:patient_app/widgets/language_toggle_button.dart';
 import 'package:patient_app/widgets/loading_overlay.dart';
 import 'package:patient_app/widgets/login_signup_button.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -47,6 +48,34 @@ class _SignupScreenState extends State<SignupScreen>
   bool loading = false;
 
   late TabController tabController;
+  final supabase = Supabase.instance.client;
+
+  signUp() async {
+    if (emailcontroller.text.trim().isEmpty) {
+      Get.snackbar('Error', 'Email is required');
+      print('email:"${emailcontroller.text}"');
+      return;
+    }
+    if (passwordcontroller.text.length < 6) {
+      Get.snackbar('Error', 'Password must be at least 6 characters');
+      return;
+    }
+    // Also validate other fields if needed
+    setState(() => loading = true);
+    try {
+      final result = await supabase.auth.signUp(
+        email: emailcontroller.text.trim(),
+        password: passwordcontroller.text,
+      );
+      if (result.user != null) {
+        Get.offAll(() => LoginScreen());
+      }
+    } catch (e) {
+      Get.snackbar('Sign Up Failed', e.toString());
+    } finally {
+      setState(() => loading = false);
+    }
+  }
 
   @override
   void initState() {
@@ -59,7 +88,6 @@ class _SignupScreenState extends State<SignupScreen>
     tabController.dispose();
     super.dispose();
   }
-
 
   void sendSignUpData() {
     logger("Sending sign up data", "Nexora Sign up");
@@ -276,7 +304,13 @@ class _SignupScreenState extends State<SignupScreen>
                             ],
                           ),
                           const SizedBox(height: 10),
-                          Text("or signup with",style: TextStyle(fontSize: 14,fontWeight: FontWeight.bold),),
+                          Text(
+                            "or signup with",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           const SizedBox(height: 10),
                           ImageButton(
                             imagePath: "assets/images/google.png",
@@ -359,7 +393,9 @@ class _SignupScreenState extends State<SignupScreen>
                         ),
                         LoginSignupButton(
                           text: AppLocalizations.of(context)!.signup,
-                          onPressed: () {},
+                          onPressed: () {
+                            signUp();
+                          },
                         ),
                       ],
                     ),

@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:patient_app/app_constants.dart';
+import 'package:patient_app/home_screen.dart';
 import 'package:patient_app/login_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -12,6 +14,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   int _percentage = 0;
   late final Timer _timer;
+  final supabase = Supabase.instance.client;
   @override
   void initState() {
     super.initState();
@@ -25,6 +28,9 @@ class _SplashScreenState extends State<SplashScreen> {
         setState(() {
           _percentage += 1;
         });
+if(supabase.auth.currentSession == null){
+  Get.offAll(()=>HomeScreen());
+}
       } else {
         timer.cancel();
         Get.offAll(() =>  LoginScreen());
