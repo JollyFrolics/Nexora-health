@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:get/route_manager.dart';
 import 'package:patient_app/splash_screen.dart';
 import 'package:patient_app/l10n/app_localizations.dart';
@@ -26,14 +25,14 @@ class PatientApp extends StatefulWidget {
 
   const PatientApp({super.key, required this.languageCode});
 
-  static _PatientAppState? of(BuildContext context) =>
-      context.findAncestorStateOfType<_PatientAppState>();
+  static PatientAppState? of(BuildContext context) =>
+      context.findAncestorStateOfType<PatientAppState>();
 
   @override
-  State<PatientApp> createState() => _PatientAppState();
+  State<PatientApp> createState() => PatientAppState();
 }
 
-class _PatientAppState extends State<PatientApp> {
+class PatientAppState extends State<PatientApp> {
   String get currentLanguageCode => _locale.languageCode;
   late Locale _locale;
 

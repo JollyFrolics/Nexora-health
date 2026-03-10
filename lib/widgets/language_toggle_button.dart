@@ -12,7 +12,7 @@ class LanguageToggleButton extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(25),
       ),
       child: ToggleButtons(

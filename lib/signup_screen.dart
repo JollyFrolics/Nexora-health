@@ -4,7 +4,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
-import 'package:get/get_state_manager/get_state_manager.dart';
 import 'package:patient_app/app_constants.dart';
 import 'package:patient_app/controller/internet_status_controller.dart';
 import 'package:patient_app/l10n/app_localizations.dart';
@@ -57,7 +56,7 @@ class _SignupScreenState extends State<SignupScreen>
   signUp() async {
     if (emailcontroller.text.trim().isEmpty) {
       Get.snackbar('Error', 'Email is required');
-      print('email:"${emailcontroller.text}"');
+      logger('email:"${emailcontroller.text}"', "Nexora signup");
       return;
     }
     if (passwordcontroller.text.length < 6) {
@@ -110,7 +109,7 @@ class _SignupScreenState extends State<SignupScreen>
         Get.offAll(() => LoginScreen());
       }
     } catch (e) {
-      print(e.toString());
+      logger(e.toString(), "Nexora signup", level: Level.info);
     }
   }
 
