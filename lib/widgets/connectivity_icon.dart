@@ -3,7 +3,7 @@ import 'package:patient_app/app_constants.dart';
 
 class ConnectivityIndicator extends StatelessWidget {
   final IconData icon;
- const ConnectivityIndicator({super.key, required this.icon});
+  const ConnectivityIndicator({super.key, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -11,11 +11,11 @@ class ConnectivityIndicator extends StatelessWidget {
       width: 40,
       height: 30,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             spreadRadius: 2,
             blurRadius: 5,
             offset: const Offset(0, 3), // changes position of shadow

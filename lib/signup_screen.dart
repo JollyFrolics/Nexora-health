@@ -4,7 +4,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
-import 'package:get/get_state_manager/get_state_manager.dart';
 import 'package:patient_app/app_constants.dart';
 import 'package:patient_app/controller/internet_status_controller.dart';
 import 'package:patient_app/l10n/app_localizations.dart';
@@ -59,7 +58,7 @@ class _SignupScreenState extends State<SignupScreen>
   signUp() async {
     if (emailcontroller.text.trim().isEmpty) {
       Get.snackbar('Error', 'Email is required');
-      print('email:"${emailcontroller.text}"');
+      logger('email:"${emailcontroller.text}"', "Nexora signup");
       return;
     }
     if (passwordcontroller.text.length < 6) {
@@ -94,19 +93,25 @@ class _SignupScreenState extends State<SignupScreen>
       );
       GoogleSignInAccount account = await signIn.authenticate();
       String idToken = account.authentication.idToken ?? "";
-      final authorization = await account.authorizationClient
-          .authorizationForScopes(["email", "profile"])?? await account.authorizationClient.authorizeScopes(["email","profile"]);
+      final authorization =
+          await account.authorizationClient.authorizationForScopes([
+            "email",
+            "profile",
+          ]) ??
+          await account.authorizationClient.authorizeScopes([
+            "email",
+            "profile",
+          ]);
       final result = await supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: authorization.accessToken,
-        
       );
        if (result.user != null) {
-        Get.offAll(() => HomeScreen());
+        Get.offAll(() => LoginScreen());
       }
     } catch (e) {
-      print(e.toString());
+      logger(e.toString(), "Nexora signup", level: Level.info);
     }
   }
 
@@ -350,7 +355,6 @@ class _SignupScreenState extends State<SignupScreen>
                             text: "Google",
                             onPressed: () {
                               continueWithGoogle();
-                              
                             },
                           ),
                           const SizedBox(height: 30),

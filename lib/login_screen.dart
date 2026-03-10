@@ -1,13 +1,13 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_state_manager/get_state_manager.dart';
 import 'package:lottie/lottie.dart';
 import 'package:patient_app/app_constants.dart';
 import 'package:patient_app/controller/internet_status_controller.dart';
 import 'package:patient_app/home_screen.dart';
 import 'package:patient_app/l10n/app_localizations.dart';
 import 'package:patient_app/signup_screen.dart';
+import 'package:patient_app/utils/logging.dart';
 import 'package:patient_app/widgets/connectivity_icon.dart';
 import 'package:patient_app/widgets/input_field.dart';
 import 'package:patient_app/widgets/language_toggle_button.dart';
@@ -33,17 +33,17 @@ class _LoginScreenState extends State<LoginScreen> {
   final supabase = Supabase.instance.client;
 
   login() async {
-   if (emailcontroller.text.trim().isEmpty){
-    Get.snackbar("Error", "Please enter your email");
-    return;
-   }
-   if(passwordcontroller.text.trim().isEmpty){
-    Get.snackbar("Error","Please enter your password");
-    return;
-   }
-   setState(() {
-     loading= true;
-   });
+    if (emailcontroller.text.trim().isEmpty) {
+      Get.snackbar("Error", "Please enter your email");
+      return;
+    }
+    if (passwordcontroller.text.trim().isEmpty) {
+      Get.snackbar("Error", "Please enter your password");
+      return;
+    }
+    setState(() {
+      loading = true;
+    });
     try {
       final result = await supabase.auth.signInWithPassword(
         email: emailcontroller.text.trim(),
@@ -53,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Get.offAll(() => HomeScreen());
       }
     } catch (e) {
-      print(e.toString());
+      logger(e.toString(), "Nexora Login");
     } finally {
       setState(() {
         loading = false;

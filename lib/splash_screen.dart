@@ -5,6 +5,7 @@ import 'package:patient_app/app_constants.dart';
 import 'package:patient_app/home_screen.dart';
 import 'package:patient_app/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -28,12 +29,12 @@ class _SplashScreenState extends State<SplashScreen> {
         setState(() {
           _percentage += 1;
         });
-if(supabase.auth.currentSession == null){
-  Get.offAll(()=>HomeScreen());
-}
+        if (supabase.auth.currentSession == null) {
+          Get.offAll(() => HomeScreen());
+        }
       } else {
         timer.cancel();
-        Get.offAll(() =>  LoginScreen());
+        Get.offAll(() => LoginScreen());
       }
     });
   }
