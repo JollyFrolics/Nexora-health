@@ -1,5 +1,7 @@
 class DoctorInfo {
-  final String id, name, specialty, hospital;
+  final String id; 
+  final int doctorTableId; 
+  final String name, specialty, hospital;
   final String province, district, municipality;
   final String qualification, licenseNumber;
   final int? experienceYears;
@@ -10,6 +12,7 @@ class DoctorInfo {
 
   const DoctorInfo({
     required this.id,
+    required this.doctorTableId,
     required this.name,
     required this.specialty,
     required this.hospital,
@@ -28,30 +31,36 @@ class DoctorInfo {
   });
 
   factory DoctorInfo.fromMap(Map<String, dynamic> m) {
-    final p =
-        m['user_profiles!doctors_user_id_fkey'] as Map<String, dynamic>? ??
-        m['user_profiles'] as Map<String, dynamic>? ??
-        {};
+   
+    dynamic profilesRaw = m['user_profiles'];
+    Map<String, dynamic>? profile;
+
+    if (profilesRaw is List && profilesRaw.isNotEmpty) {
+      profile = Map<String, dynamic>.from(profilesRaw.first);
+    } else if (profilesRaw is Map<String, dynamic>) {
+      profile = profilesRaw;
+    }
+
     return DoctorInfo(
       id: m['user_id']?.toString() ?? '',
-      name: p['full_name']?.toString() ?? 'Unknown Doctor',
+      doctorTableId: m['id'] as int? ?? 0,
+      name: profile?['full_name']?.toString() ?? 'Unknown Doctor',
       specialty: m['specialty']?.toString() ?? '',
       hospital: m['healthpost_name']?.toString() ?? '',
-      province: m['province']?.toString() ?? '',
-      district: m['district']?.toString() ?? '',
-      municipality: m['municipality']?.toString() ?? '',
+      province: profile?['province']?.toString() ?? '',
+      district: profile?['district']?.toString() ?? '',
+      municipality: profile?['municipality']?.toString() ?? '',
       qualification: m['qualification']?.toString() ?? '',
       licenseNumber: m['license_number']?.toString() ?? '',
       experienceYears: m['experience_years'] as int?,
-      rating: (m['rating'] as num?)?.toDouble() ?? 4.5,
+      rating: double.tryParse(m['rating']?.toString() ?? '') ?? 4.5,
       isVerified: m['is_verified'] as bool? ?? false,
       isAvailable: m['is_active'] as bool? ?? true,
-      avatarUrl: p['avatar_url']?.toString(),
-      phone: p['phone']?.toString() ?? '',
-      email: p['email']?.toString() ?? '',
+      avatarUrl: profile?['avatar_url']?.toString(),
+      phone: profile?['phone']?.toString() ?? '',
+      email: profile?['email']?.toString() ?? '',
     );
   }
-
   String get initials {
     final pts = name.trim().split(' ');
     if (pts.length >= 2) return '${pts[0][0]}${pts[1][0]}'.toUpperCase();

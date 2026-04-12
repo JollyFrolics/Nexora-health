@@ -5,7 +5,6 @@ import 'package:patient_app/app_constants.dart';
 import 'package:patient_app/change_password.dart';
 import 'package:patient_app/controller/app_setting.dart';
 import 'package:patient_app/controller/profile_controller.dart';
-import 'package:patient_app/l10n/app_localizations.dart';
 import 'package:patient_app/login_screen.dart';
 import 'package:patient_app/models/patients_model.dart';
 import 'package:patient_app/widgets/language_toggle_button.dart';

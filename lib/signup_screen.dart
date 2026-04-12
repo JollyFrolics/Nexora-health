@@ -208,6 +208,7 @@ class _SignupScreenState extends State<SignupScreen>
           result.user!.userMetadata?['name'] ??
           "";
       final googleAvatar = result.user!.userMetadata?['avatar_url'] ?? '';
+      // ignore: unused_local_variable
       final googleEmail = result.user!.email ?? '';
 
       //   save the user_profile ( Google data  + an form data already filled)

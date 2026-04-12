@@ -60,17 +60,14 @@ class _HomePageState extends State<HomePage> {
             .maybeSingle(),
         _supa
             .from('appointments')
-            .select(
-              'id, scheduled_at, status, consultation_type, doctor_id, '
-              'user_profiles!appointments_doctor_id_fkey(full_name, avatar_url)',
-            )
+            .select('id, scheduled_at, status, consultation_type, doctor_id')
             .eq('patient_id', uid)
             .order('scheduled_at', ascending: false)
             .limit(50),
       ]);
 
       // ── Profile ───────────────────────────────────────────────────────────
-final profileMap = results[0] as Map<String, dynamic>?;
+      final profileMap = results[0] as Map<String, dynamic>?;
 
       _profile = PatientProfile(
         id: '',
@@ -95,17 +92,45 @@ final profileMap = results[0] as Map<String, dynamic>?;
           .toList();
 
       // ── Fetch specialty + healthpost for those doctors ────────────────────
-      Map<String, Map<String, dynamic>> doctorExtrasMap = {};
+      final Map<String, Map<String, dynamic>> doctorMap = {};
       if (doctorIds.isNotEmpty) {
         try {
           final doctorRows = await _supa
               .from('doctors')
-              .select('user_id, specialty, healthpost_name')
-              .inFilter('user_id', doctorIds);
-          for (final row in doctorRows as List) {
-            final uid2 =
-                (row as Map<String, dynamic>)['user_id']?.toString() ?? '';
-            if (uid2.isNotEmpty) doctorExtrasMap[uid2] = row;
+              .select('id, user_id, specialty, healthpost_name')
+              .inFilter('id', doctorIds);
+
+          final userIds = (doctorRows as List)
+              .map((row) => row['user_id']?.toString())
+              .where((id) => id != null && id.isNotEmpty)
+              .toSet()
+              .toList();
+
+          final profileRows =
+              userIds.isEmpty
+                  ? <dynamic>[]
+                  : await _supa
+                      .from('user_profiles')
+                      .select('id, full_name, avatar_url')
+                      .inFilter('id', userIds);
+          final profileList = List<Map<String, dynamic>>.from(profileRows);
+          final doctorList = List<Map<String, dynamic>>.from(doctorRows);
+
+          final profileLookup = <String, Map<String, dynamic>>{
+            for (final row in profileList) row['id'].toString(): row,
+          };
+
+          for (final doctor in doctorList) {
+            final doctorUserId = doctor['user_id']?.toString() ?? '';
+            final doctorProfile = profileLookup[doctorUserId] ?? {};
+            final doctorId = doctor['id']?.toString() ?? '';
+            if (doctorId.isEmpty) continue;
+            doctorMap[doctorId] = {
+              'specialty': doctor['specialty']?.toString() ?? '',
+              'healthpost_name': doctor['healthpost_name']?.toString() ?? '',
+              'full_name': doctorProfile['full_name']?.toString() ?? 'डाक्टर',
+              'avatar_url': doctorProfile['avatar_url']?.toString(),
+            };
           }
         } catch (_) {
           // Non-fatal — specialty/healthpost will show empty
@@ -117,7 +142,7 @@ final profileMap = results[0] as Map<String, dynamic>?;
           .map((e) {
             final m = e as Map<String, dynamic>;
             final did = m['doctor_id']?.toString() ?? '';
-            return _parseAppointment(m, doctorExtrasMap[did] ?? {});
+            return _parseAppointment(m, doctorMap[did] ?? {});
           })
           .where((a) => a != null)
           .cast<AppointmentData>()
@@ -157,21 +182,15 @@ final profileMap = results[0] as Map<String, dynamic>?;
 
   AppointmentData? _parseAppointment(
     Map<String, dynamic> m,
-    Map<String, dynamic> doctorExtras,
+    Map<String, dynamic> doctorData,
   ) {
     try {
-      // doctor_id FK → user_profiles (name + avatar)
-      final doctorProfile =
-          m['user_profiles!appointments_doctor_id_fkey']
-              as Map<String, dynamic>? ??
-          m['user_profiles'] as Map<String, dynamic>? ??
-          {};
       return AppointmentData(
         id: m['id']?.toString() ?? '',
-        doctorName: doctorProfile['full_name']?.toString() ?? 'डाक्टर',
-        specialty: doctorExtras['specialty']?.toString() ?? '',
-        healthpostName: doctorExtras['healthpost_name']?.toString() ?? '',
-        doctorAvatarUrl: doctorProfile['avatar_url']?.toString(),
+        doctorName: doctorData['full_name']?.toString() ?? 'डाक्टर',
+        specialty: doctorData['specialty']?.toString() ?? '',
+        healthpostName: doctorData['healthpost_name']?.toString() ?? '',
+        doctorAvatarUrl: doctorData['avatar_url']?.toString(),
         scheduledAt: DateTime.parse(m['scheduled_at']).toLocal(),
         status: m['status']?.toString() ?? 'pending',
         consultationType: m['consultation_type']?.toString() ?? 'audio',
@@ -303,7 +322,7 @@ final profileMap = results[0] as Map<String, dynamic>?;
           if (_profile?.avatar != null)
             CircleAvatar(
               radius: 22,
-              backgroundImage: NetworkImage(_profile!.avatar!),
+              backgroundImage: NetworkImage(_profile!.avatar),
               backgroundColor: AppConstants.primaryColor.withOpacity(0.1),
             )
           else
@@ -338,7 +357,7 @@ final profileMap = results[0] as Map<String, dynamic>?;
           titleNe: 'अपोइन्टमेन्ट\nबुक गर्नुहोस्',
           titleEn: 'Book Appointment',
           color: AppConstants.primaryColor,
-          onTap: () => Get.to(() => const BookAppointmentScreen()),
+          onTap: () => Get.to(() => const SimpleBookScreen()),
         ),
       ),
       const SizedBox(width: 12),
@@ -568,7 +587,7 @@ final profileMap = results[0] as Map<String, dynamic>?;
           ),
         ),
         GestureDetector(
-          onTap: () => Get.to(() => const BookAppointmentScreen()),
+          onTap: () => Get.to(() => const SimpleBookScreen()),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(

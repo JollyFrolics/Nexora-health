@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "888817447596",
+    "project_id": "nexora-health-22eb4",
+    "storage_bucket": "nexora-health-22eb4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:888817447596:android:e710b2bb131a9804c22509",
+        "android_client_info": {
+          "package_name": "com.example.patient_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDdtZp5BPT6Y4HB6ME6iXVSuYSLx-z66BY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

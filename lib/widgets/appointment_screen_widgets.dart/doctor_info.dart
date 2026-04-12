@@ -1,13 +1,76 @@
 import 'package:flutter/material.dart';
 import 'package:patient_app/app_constants.dart';
-import 'package:patient_app/appointment_confirm_screen.dart';
 import 'package:patient_app/models/doctor_model.dart';
+import 'package:patient_app/widgets/image.dart';
+
+class DoctorInitials extends StatelessWidget {
+  final String initials;
+
+  const DoctorInitials(this.initials, {super.key});
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Text(
+      initials,
+      style: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+        color: AppConstants.primaryColor,
+      ),
+    ),
+  );
+}
+
+class DChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const DChip(this.icon, this.label, {super.key});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF1F5F9),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: AppConstants.primaryColor),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: AppConstants.primaryColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildAvatar(DoctorInfo doctor) {
+  final url = doctor.avatarUrl;
+
+  if (url != null && url.isNotEmpty) {
+    return ClipOval(
+      child:SafeNetworkImage(url: doctor.avatarUrl)
+    );
+  }
+
+  return DoctorInitials(doctor.initials);
+}
 
 class DoctorCard extends StatelessWidget {
   final DoctorInfo doctor;
   final bool isSelected;
   final ValueChanged<DoctorInfo> onSelect;
+
   const DoctorCard({
+    super.key,
     required this.doctor,
     required this.isSelected,
     required this.onSelect,
@@ -40,7 +103,6 @@ class DoctorCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // ── Main row ──────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(14),
             child: Row(
@@ -57,19 +119,11 @@ class DoctorCard extends StatelessWidget {
                         ? Border.all(color: AppConstants.primaryColor, width: 2)
                         : null,
                   ),
-                  child:
-                      doctor.avatarUrl != null && doctor.avatarUrl!.isNotEmpty
-                      ? ClipOval(
-                          child: Image.network(
-                            doctor.avatarUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                DoctorInitials(doctor.initials),
-                          ),
-                        )
-                      : DoctorInitials(doctor.initials),
+                  child: _buildAvatar(doctor),
                 ),
+
                 const SizedBox(width: 12),
+
                 // Info
                 Expanded(
                   child: Column(
@@ -89,6 +143,7 @@ class DoctorCard extends StatelessWidget {
                               ),
                             ),
                           ),
+
                           if (doctor.isVerified)
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -121,7 +176,9 @@ class DoctorCard extends StatelessWidget {
                             ),
                         ],
                       ),
+
                       const SizedBox(height: 3),
+
                       Text(
                         doctor.specialty,
                         style: TextStyle(
@@ -130,7 +187,9 @@ class DoctorCard extends StatelessWidget {
                           color: AppConstants.primaryColor.withOpacity(0.8),
                         ),
                       ),
+
                       const SizedBox(height: 2),
+
                       Text(
                         doctor.hospital,
                         style: const TextStyle(
@@ -138,8 +197,10 @@ class DoctorCard extends StatelessWidget {
                           color: Color(0xFF64748B),
                         ),
                       ),
+
                       const SizedBox(height: 6),
-                      // Stars + experience
+
+                      // Rating
                       Row(
                         children: [
                           ...List.generate(
@@ -161,28 +222,13 @@ class DoctorCard extends StatelessWidget {
                               color: Color(0xFF64748B),
                             ),
                           ),
-                          if (doctor.experienceYears != null) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 1,
-                              height: 12,
-                              color: const Color(0xFFE2E8F0),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${doctor.experienceYears} वर्ष',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF94A3B8),
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ],
                   ),
                 ),
-                // Availability badge
+
+                // Availability
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 9,
@@ -195,7 +241,7 @@ class DoctorCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    doctor.isAvailable ? 'उपलब्ध' : 'व्यस्त',
+                    doctor.isAvailable ? 'Available' : 'Busy',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
@@ -209,7 +255,7 @@ class DoctorCard extends StatelessWidget {
             ),
           ),
 
-          // ── Detail strip ──────────────────────────────────────────────
+
           Container(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
             child: Column(
@@ -219,6 +265,7 @@ class DoctorCard extends StatelessWidget {
                   color: const Color(0xFFF1F5F9),
                   margin: const EdgeInsets.only(bottom: 10),
                 ),
+
                 Row(
                   children: [
                     DChip(
@@ -234,7 +281,9 @@ class DoctorCard extends StatelessWidget {
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 8),
+
                 Row(
                   children: [
                     const Icon(
@@ -258,21 +307,6 @@ class DoctorCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (doctor.phone.isNotEmpty) ...[
-                      Icon(
-                        Icons.phone_outlined,
-                        size: 12,
-                        color: AppConstants.primaryColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        doctor.phone,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppConstants.primaryColor,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ],

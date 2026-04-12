@@ -7,7 +7,6 @@ import 'package:patient_app/controller/internet_status_controller.dart';
 import 'package:patient_app/home_screen.dart';
 import 'package:patient_app/l10n/app_localizations.dart';
 import 'package:patient_app/signup_screen.dart';
-import 'package:patient_app/utils/logging.dart';
 import 'package:patient_app/widgets/connectivity_icon.dart';
 import 'package:patient_app/widgets/input_field.dart';
 import 'package:patient_app/widgets/language_toggle_button.dart';
@@ -50,6 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
         password: passwordcontroller.text,
       );
       if (result.user != null) {
+        print('=== FRESH TOKEN: ${result.session?.accessToken}');
+
         Get.offAll(() => HomeScreen());
       }
     }
@@ -160,8 +161,15 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             LoginSignupButton(
               text: AppLocalizations.of(context)!.login,
-              onPressed: () {
-                login();
+              onPressed: () async {
+                await login();
+                // Now session will have the token
+                final session = Supabase.instance.client.auth.currentSession;
+                final user = Supabase.instance.client.auth.currentUser;
+
+                print('=== SESSION: $session');
+                print('=== USER: $user');
+                print('=== TOKEN: ${session?.accessToken}');
               },
             ),
             const SizedBox(height: 20),

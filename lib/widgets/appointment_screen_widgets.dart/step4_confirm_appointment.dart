@@ -83,12 +83,12 @@ class Step4DateTime extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
                 child: Row(
                   children: [
-                    NavBtn(
-                      Icons.chevron_left_rounded,
-                      () => onMonthChanged(
-                        DateTime(focusedMonth.year, focusedMonth.month - 1),
-                      ),
-                    ),
+                    // NavBtn(
+                    //   Icons.chevron_left_rounded,
+                    //   () => onMonthChanged(
+                    //     DateTime(focusedMonth.year, focusedMonth.month - 1),
+                    //   ),
+                    // ),
                     Expanded(
                       child: Text(
                         '${_monthNames[focusedMonth.month - 1]} ${focusedMonth.year}',
@@ -100,12 +100,12 @@ class Step4DateTime extends StatelessWidget {
                         ),
                       ),
                     ),
-                    NavBtn(
-                      Icons.chevron_right_rounded,
-                      () => onMonthChanged(
-                        DateTime(focusedMonth.year, focusedMonth.month + 1),
-                      ),
-                    ),
+                    // NavBtn(
+                    //   Icons.chevron_right_rounded,
+                    //   () => onMonthChanged(
+                    //     DateTime(focusedMonth.year, focusedMonth.month + 1),
+                    //   ),
+                    // ),
                   ],
                 ),
               ),

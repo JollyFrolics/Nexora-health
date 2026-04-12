@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:patient_app/appointment_confirm_screen.dart';
+import 'package:patient_app/services/api_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:patient_app/app_constants.dart';
-
 
 class _Appt {
   final String id;
@@ -16,7 +16,7 @@ class _Appt {
   final DateTime scheduledAt;
   final String status;
   final String consultType; // chat | audio | video
-  final String? reason;
+  final String? patient_notes;
 
   const _Appt({
     required this.id,
@@ -28,10 +28,9 @@ class _Appt {
     required this.scheduledAt,
     required this.status,
     required this.consultType,
-    this.reason,
+    this.patient_notes,
   });
 
-  // ── Derived helpers ────────────────────────────────────────────────────────
   String get initials {
     final pts = doctorName.trim().split(' ');
     if (pts.length >= 2) return '${pts[0][0]}${pts[1][0]}'.toUpperCase();
@@ -119,31 +118,9 @@ class _Appt {
     'no_show' => 'गैरहाजिर',
     _ => status,
   };
-
-  factory _Appt.fromMap(Map<String, dynamic> m, Map<String, dynamic> extras) {
-    final prof =
-        m['user_profiles!appointments_doctor_id_fkey']
-            as Map<String, dynamic>? ??
-        m['user_profiles'] as Map<String, dynamic>? ??
-        {};
-    return _Appt(
-      id: m['id']?.toString() ?? '',
-      doctorId: m['doctor_id']?.toString() ?? '',
-      doctorName: prof['full_name']?.toString() ?? 'डाक्टर',
-      specialty: extras['specialty']?.toString() ?? '',
-      healthpostName: extras['healthpost_name']?.toString() ?? '',
-      avatarUrl: prof['avatar_url']?.toString(),
-      scheduledAt: DateTime.parse(m['scheduled_at']).toLocal(),
-      status: m['status']?.toString() ?? 'pending',
-      consultType: m['consultation_type']?.toString() ?? 'audio',
-      reason: m['reason']?.toString(),
-    );
-  }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SCREEN
-// ─────────────────────────────────────────────────────────────────────────────
+
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key});
 
@@ -178,7 +155,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
     super.dispose();
   }
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
+  // ── Fetch appointments (patient view) ─────────────────────────────────────
   Future<void> _loadAppointments() async {
     setState(() {
       _loading = true;
@@ -188,51 +165,91 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
       final uid = _supa.auth.currentUser?.id;
       if (uid == null) throw Exception('Not authenticated');
 
-      // Step 1 — fetch appointments with doctor user_profiles join
+      // 1. Fetch appointments for this patient
       final rows = await _supa
           .from('appointments')
           .select(
-            'id, doctor_id, scheduled_at, status, consultation_type, reason, '
-            'user_profiles!appointments_doctor_id_fkey(full_name, avatar_url)',
+            'id, doctor_id, scheduled_at, status, consultation_type, patient_notes',
           )
           .eq('patient_id', uid)
           .order('scheduled_at', ascending: false);
 
-      // Step 2 — fetch doctor extras (specialty, healthpost) by user_ids
-      final doctorIds = (rows as List)
-          .map((e) => (e as Map<String, dynamic>)['doctor_id']?.toString())
-          .where((id) => id != null && id!.isNotEmpty)
+      final apptList = rows as List;
+      if (apptList.isEmpty) {
+        setState(() {
+          _upcoming = [];
+          _completed = [];
+          _cancelled = [];
+          _loading = false;
+        });
+        return;
+      }
+
+      // 2. Collect unique doctor_ids
+      final doctorIds = apptList
+          .map((e) => e['doctor_id']?.toString())
+          .where((id) => id != null && id.isNotEmpty)
           .toSet()
           .toList();
 
-      final Map<String, Map<String, dynamic>> extrasMap = {};
-      if (doctorIds.isNotEmpty) {
-        try {
-          final dRows = await _supa
-              .from('doctors')
-              .select('user_id, specialty, healthpost_name')
-              .inFilter('user_id', doctorIds);
-          for (final r in dRows as List) {
-            final m = r as Map<String, dynamic>;
-            extrasMap[m['user_id']?.toString() ?? ''] = m;
-          }
-        } catch (_) {}
+      // 3. Fetch doctors (including user_id)
+      final doctorRows = await _supa
+          .from('doctors')
+          .select('id, specialty, healthpost_name, user_id')
+          .inFilter('id', doctorIds);
+
+      // 4. Collect user_ids from doctors
+      final userIds = (doctorRows as List)
+          .map((e) => e['user_id']?.toString())
+          .where((id) => id != null && id.isNotEmpty)
+          .toSet()
+          .toList();
+
+      // 5. Fetch user_profiles for those user_ids
+      final profileRows = userIds.isEmpty
+          ? <dynamic>[]
+          : await _supa
+                .from('user_profiles')
+                .select('id, full_name, avatar_url')
+                .inFilter('id', userIds);
+
+      final profileList = List<Map<String, dynamic>>.from(profileRows);
+      final doctorList = List<Map<String, dynamic>>.from(doctorRows);
+
+      // Build lookup maps
+      final profileMap = <String, Map<String, dynamic>>{
+        for (final p in profileList) p['id'].toString(): p,
+      };
+
+      final doctorMap = <String, Map<String, dynamic>>{};
+      for (final doc in doctorList) {
+        final prof = profileMap[doc['user_id']?.toString()] ?? {};
+        doctorMap[doc['id'].toString()] = {
+          'specialty': doc['specialty'] ?? '',
+          'healthpost_name': doc['healthpost_name'] ?? '',
+          'full_name': prof['full_name'] ?? 'डाक्टर',
+          'avatar_url': prof['avatar_url'],
+        };
       }
 
-      // Step 3 — parse and bucket
-      final all = rows
-          .map((e) {
-            final m = e as Map<String, dynamic>;
-            final did = m['doctor_id']?.toString() ?? '';
-            try {
-              return _Appt.fromMap(m, extrasMap[did] ?? {});
-            } catch (_) {
-              return null;
-            }
-          })
-          .where((a) => a != null)
-          .cast<_Appt>()
-          .toList();
+      // 6. Build _Appt objects
+      final all = apptList.map((e) {
+        final m = e as Map<String, dynamic>;
+        final docId = m['doctor_id']?.toString() ?? '';
+        final doc = doctorMap[docId] ?? {};
+        return _Appt(
+          id: m['id']?.toString() ?? '',
+          doctorId: docId,
+          doctorName: doc['full_name']?.toString() ?? 'डाक्टर',
+          specialty: doc['specialty']?.toString() ?? '',
+          healthpostName: doc['healthpost_name']?.toString() ?? '',
+          avatarUrl: doc['avatar_url']?.toString(),
+          scheduledAt: DateTime.parse(m['scheduled_at']).toLocal(),
+          status: m['status']?.toString() ?? 'pending',
+          consultType: m['consultation_type']?.toString() ?? 'audio',
+          patient_notes: m['patient_notes']?.toString(),
+        );
+      }).toList();
 
       final now = DateTime.now();
       setState(() {
@@ -265,23 +282,19 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
     }
   }
 
-  // ── Cancel appointment ────────────────────────────────────────────────────
+  // ── Cancel appointment (calls FastAPI backend) ────────────────────────────
   Future<void> _cancelAppointment(_Appt appt) async {
     final confirm = await _showCancelDialog(appt);
     if (confirm != true) return;
 
     setState(() => _cancelling = true);
     try {
-      await _supa
-          .from('appointments')
-          .update({'status': 'cancelled'})
-          .eq('id', appt.id);
-
+      await ApiService.cancelAppointment(appt.id);
       Get.snackbar(
         'रद्द गरियो',
         'अपोइन्टमेन्ट सफलतापूर्वक रद्द गरियो।',
-        backgroundColor: const Color(0xFFF5F5F5),
-        colorText: const Color(0xFF424242),
+        backgroundColor: const Color(0xFFEAF7EF),
+        colorText: const Color(0xFF1A7A4A),
         borderRadius: 12,
         margin: const EdgeInsets.all(12),
         duration: const Duration(seconds: 3),
@@ -350,9 +363,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
     ),
   );
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // BUILD
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Build UI ──────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -372,7 +383,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.to(
-          () => const BookAppointmentScreen(),
+          () => const SimpleBookScreen(),
         )?.then((_) => _loadAppointments()),
         backgroundColor: AppConstants.primaryColor,
         foregroundColor: Colors.white,
@@ -386,7 +397,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
     );
   }
 
-  // ── AppBar with tabs ──────────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar() => AppBar(
     backgroundColor: AppConstants.primaryColor,
     elevation: 0,
@@ -423,13 +433,12 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
         Tab(
           text: 'आउँदो${_upcoming.isNotEmpty ? " (${_upcoming.length})" : ""}',
         ),
-        Tab(text: 'सम्पन्न'),
-        Tab(text: 'रद्द'),
+        const Tab(text: 'सम्पन्न'),
+        const Tab(text: 'रद्द'),
       ],
     ),
   );
 
-  // ── Tab content ───────────────────────────────────────────────────────────
   Widget _buildTabContent(List<_Appt> list, String type) {
     if (list.isEmpty) return _buildEmpty(type);
     return RefreshIndicator(
@@ -451,7 +460,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
     );
   }
 
-  // ── Join handler ──────────────────────────────────────────────────────────
   void _handleJoin(_Appt appt) {
     Get.snackbar(
       '${appt.consultLabel.toUpperCase()} जोइन',
@@ -464,7 +472,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
     );
   }
 
-  // ── Detail bottom sheet ───────────────────────────────────────────────────
   void _showDetailSheet(_Appt a) {
     showModalBottomSheet(
       context: context,
@@ -484,7 +491,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
     );
   }
 
-  // ── Empty state ───────────────────────────────────────────────────────────
   Widget _buildEmpty(String type) {
     final icon = type == 'upcoming'
         ? Icons.calendar_today_outlined
@@ -622,13 +628,11 @@ class _ApptCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // ── Doctor info row ──────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Avatar
                   _Avatar(name: appt.doctorName, url: appt.avatarUrl, size: 50),
                   const SizedBox(width: 12),
                   Expanded(
@@ -654,7 +658,6 @@ class _ApptCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 7),
-                        // Date + time + consult type
                         Row(
                           children: [
                             const Icon(
@@ -687,11 +690,10 @@ class _ApptCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        // Reason (if set)
-                        if (appt.reason != null && appt.reason!.isNotEmpty) ...[
+                        if (appt.patient_notes  != null && appt.patient_notes !.isNotEmpty) ...[
                           const SizedBox(height: 5),
                           Text(
-                            appt.reason!,
+                            appt.patient_notes!,
                             style: const TextStyle(
                               fontSize: 11,
                               color: Colors.grey,
@@ -704,7 +706,6 @@ class _ApptCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Status badge
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 11,
@@ -726,22 +727,17 @@ class _ApptCard extends StatelessWidget {
                 ],
               ),
             ),
-
-            // ── Divider ──────────────────────────────────────────────────
             if (showJoin || showCancel)
               Container(
                 height: 0.5,
                 margin: const EdgeInsets.symmetric(horizontal: 14),
                 color: const Color(0xFFE2E8F0),
               ),
-
-            // ── Action buttons ────────────────────────────────────────────
             if (showJoin || showCancel)
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
                 child: Column(
                   children: [
-                    // Join button (full width)
                     if (showJoin)
                       SizedBox(
                         width: double.infinity,
@@ -767,7 +763,6 @@ class _ApptCard extends StatelessWidget {
                         ),
                       ),
                     if (showJoin && showCancel) const SizedBox(height: 8),
-                    // Cancel button (full width, always visible for upcoming)
                     if (showCancel)
                       SizedBox(
                         width: double.infinity,
@@ -834,7 +829,6 @@ class _DetailSheet extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Drag handle
             Container(
               margin: const EdgeInsets.only(top: 12, bottom: 8),
               width: 40,
@@ -844,13 +838,11 @@ class _DetailSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            // Scrollable content
             Expanded(
               child: ListView(
                 controller: ctrl,
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
                 children: [
-                  // Header
                   Row(
                     children: [
                       _Avatar(
@@ -916,8 +908,6 @@ class _DetailSheet extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 20),
-
-                  // Info rows
                   _SheetRow(
                     icon: Icons.calendar_today_rounded,
                     label: 'मिति',
@@ -933,11 +923,11 @@ class _DetailSheet extends StatelessWidget {
                     label: 'परामर्श',
                     value: appt.consultLabel,
                   ),
-                  if (appt.reason != null && appt.reason!.isNotEmpty)
+                  if (appt.patient_notes  != null && appt.patient_notes!.isNotEmpty)
                     _SheetRow(
                       icon: Icons.notes_rounded,
                       label: 'कारण',
-                      value: appt.reason!,
+                      value: appt.patient_notes!,
                     ),
                   _SheetRow(
                     icon: Icons.home_outlined,
@@ -946,10 +936,7 @@ class _DetailSheet extends StatelessWidget {
                         ? '—'
                         : appt.healthpostName,
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Action buttons
                   if (appt.isUpcoming) ...[
                     SizedBox(
                       width: double.infinity,
@@ -1056,7 +1043,7 @@ class _SheetRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SHARED AVATAR
+// SHARED AVATAR (safe handling of empty URL)
 // ─────────────────────────────────────────────────────────────────────────────
 class _Avatar extends StatelessWidget {
   final String name;

@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:patient_app/app_constants.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DATA
-// ─────────────────────────────────────────────────────────────────────────────
+
 class _Contact {
   final String titleNe;
   final String titleEn;
@@ -31,7 +28,6 @@ class _Contact {
   });
 }
 
-// Real Nepal emergency numbers
 const List<_Contact> _primaryContacts = [
   _Contact(
     titleNe: 'एम्बुलेन्स',
@@ -120,9 +116,9 @@ const List<_Contact> _secondaryContacts = [
   ),
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SCREEN
-// ─────────────────────────────────────────────────────────────────────────────
+
+
+
 class EmergencyCallscreen extends StatefulWidget {
   const EmergencyCallscreen({super.key});
 
@@ -269,7 +265,9 @@ class _EmergencyCallscreenState extends State<EmergencyCallscreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -308,11 +306,10 @@ class _EmergencyCallscreenState extends State<EmergencyCallscreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Alert banner ─────────────────────────────────────────────
+            
             _AlertBanner(pulse: _pulse),
             const SizedBox(height: 20),
 
-            // ── Primary contacts (big cards) ─────────────────────────────
             const _SectionLabel(
               ne: 'मुख्य आपतकालीन सेवाहरू',
               en: 'Primary Emergency Services',
@@ -339,7 +336,6 @@ class _EmergencyCallscreenState extends State<EmergencyCallscreen>
             ),
             const SizedBox(height: 24),
 
-            // ── Secondary contacts (list cards) ──────────────────────────
             const _SectionLabel(
               ne: 'अन्य आपतकालीन सेवाहरू',
               en: 'Other Emergency Services',
@@ -356,7 +352,6 @@ class _EmergencyCallscreenState extends State<EmergencyCallscreen>
             )),
             const SizedBox(height: 24),
 
-            // ── Safety tips ──────────────────────────────────────────────
             const _SafetyTips(),
             const SizedBox(height: 30),
           ],
@@ -366,9 +361,6 @@ class _EmergencyCallscreenState extends State<EmergencyCallscreen>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ALERT BANNER
-// ─────────────────────────────────────────────────────────────────────────────
 class _AlertBanner extends StatelessWidget {
   final AnimationController pulse;
   const _AlertBanner({required this.pulse});
@@ -447,9 +439,8 @@ class _AlertBanner extends StatelessWidget {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SECTION LABEL
-// ─────────────────────────────────────────────────────────────────────────────
+
+
 class _SectionLabel extends StatelessWidget {
   final String ne, en;
   const _SectionLabel({required this.ne, required this.en});
@@ -483,9 +474,9 @@ class _SectionLabel extends StatelessWidget {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PRIMARY CARD  (large square with big number)
-// ─────────────────────────────────────────────────────────────────────────────
+
+
+
 class _PrimaryCard extends StatelessWidget {
   final _Contact contact;
   final VoidCallback onCall;
@@ -581,9 +572,9 @@ class _PrimaryCard extends StatelessWidget {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SECONDARY CARD  (horizontal list item)
-// ─────────────────────────────────────────────────────────────────────────────
+
+
+
 class _SecondaryCard extends StatelessWidget {
   final _Contact contact;
   final VoidCallback onCall;
@@ -696,9 +687,9 @@ class _SecondaryCard extends StatelessWidget {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SAFETY TIPS
-// ─────────────────────────────────────────────────────────────────────────────
+
+
+
 class _SafetyTips extends StatelessWidget {
   const _SafetyTips();
 
