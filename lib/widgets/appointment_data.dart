@@ -62,7 +62,7 @@ class AppointmentData {
       'नोभेम्बर',
       'डिसेम्बर',
     ];
-    if (isToday) return 'आज, ${formattedTime}';
+    if (isToday) return 'आज, $formattedTime';
     return '${scheduledAt.day} ${months[scheduledAt.month - 1]}';
   }
 

@@ -20,8 +20,8 @@ class PatientService {
       _patients.select().eq('user_id', uid).maybeSingle(),
     ]);
 
-    final userProfile = results[0] as Map<String, dynamic>?;
-    final patient = results[1] as Map<String, dynamic>?;
+    final userProfile = results[0];
+    final patient = results[1];
 
     if (userProfile == null) return null;
 

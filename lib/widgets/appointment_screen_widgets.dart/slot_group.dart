@@ -13,7 +13,7 @@ class SlotGroup extends StatelessWidget {
     this.slots,
     this.selected,
     this.availability,
-    this.onSelect,
+    this.onSelect, {super.key}
   );
 
   @override

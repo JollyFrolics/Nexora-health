@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
-import 'package:get/route_manager.dart';
 import 'package:patient_app/controller/app_setting.dart';
 import 'package:patient_app/controller/internet_status_controller.dart';
 import 'package:patient_app/splash_screen.dart';

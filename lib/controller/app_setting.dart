@@ -26,7 +26,7 @@ class AppSettings extends ChangeNotifier {
       );
     }
 
-    return provider!.notifier!;
+    return provider.notifier!;
   }
 }
 

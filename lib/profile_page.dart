@@ -959,7 +959,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   value: AppSettings.of(context).lowDataMode,
                   onChanged: (val) =>
                       AppSettings.of(context).setLowDataMode(val),
-                  activeColor: const Color(0xFFB71C1C),
+                  activeTrackColor: const Color(0xFFB71C1C),
                 ),
               ],
             ),

@@ -12,7 +12,7 @@ class Step4DateTime extends StatelessWidget {
   final ValueChanged<DateTime> onMonthChanged;
   final ValueChanged<DateTime> onDateSelect;
   final ValueChanged<Slot> onSlotSelect;
-  const Step4DateTime({
+  const Step4DateTime({super.key, 
     required this.focusedMonth,
     required this.selectedDate,
     required this.selectedSlot,
@@ -63,7 +63,6 @@ class Step4DateTime extends StatelessWidget {
         ),
         const SizedBox(height: 14),
 
-        // ── Calendar card ────────────────────────────────────────────────
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -139,7 +138,6 @@ class Step4DateTime extends StatelessWidget {
         ),
         const SizedBox(height: 18),
 
-        // ── Time slots ───────────────────────────────────────────────────
         if (selectedDate != null) ...[
           Row(
             children: [
@@ -238,8 +236,9 @@ class Step4DateTime extends StatelessWidget {
             children: List.generate(7, (col) {
               final idx = row * 7 + col;
               final dayNum = idx - offset + 1;
-              if (dayNum < 1 || dayNum > daysInMonth)
+              if (dayNum < 1 || dayNum > daysInMonth) {
                 return const Expanded(child: SizedBox(height: 40));
+              }
 
               final date = DateTime(
                 focusedMonth.year,

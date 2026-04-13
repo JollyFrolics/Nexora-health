@@ -29,24 +29,22 @@ class ApiService {
           onRequest: (options, handler) async {
             // Attach Supabase JWT if available
             final session = Supabase.instance.client.auth.currentSession;
-            debugPrint('🔑 Session exists: ${session != null}');
+            debugPrint(' Session exists: ${session != null}');
             debugPrint(
-              '🔑 Token: ${session?.accessToken?.substring(0, 30) ?? "NULL"}',
+              ' Token: ${session?.accessToken.substring(0, 30) ?? "NULL"}',
             );
 
             if (session != null) {
               options.headers['Authorization'] =
                   'Bearer ${session.accessToken}';
             } else {
-              // If no session, you may want to handle this (e.g., redirect to login)
               debugPrint(
-                '⚠️ No Supabase session found; request will be unauthenticated.',
+                ' No Supabase session found; request will be unauthenticated.',
               );
             }
             return handler.next(options);
           },
       onError: (DioException e, handler) async {
-            // Only retry ONCE — track with a flag in requestOptions.extra
             if (e.response?.statusCode == 401 &&
                 e.requestOptions.extra['retried'] != true) {
               try {
@@ -123,6 +121,189 @@ class ApiService {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> getMyAppointmentsEnriched() async {
+    final rows = await getMyAppointments();
+    return _enrichAppointmentsWithDoctorProfiles(
+      rows,
+      debugLabel: 'getMyAppointmentsEnriched',
+    );
+  }
+
+  static Future<List<Map<String, dynamic>>> getUpcomingAppointmentsEnriched() async {
+    final rows = await getUpcomingAppointments();
+    return _enrichAppointmentsWithDoctorProfiles(
+      rows,
+      debugLabel: 'getUpcomingAppointmentsEnriched',
+    );
+  }
+
+
+static Future<List<Map<String, dynamic>>>
+  _enrichAppointmentsWithDoctorProfiles(
+    List<Map<String, dynamic>> rows, {
+    required String debugLabel,
+  }) async {
+    if (rows.isEmpty) return rows;
+
+    final supabase = Supabase.instance.client;
+    final doctorIds = rows
+        .map((row) => row['doctor_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+    final doctorTableIds = doctorIds
+        .map((id) => int.tryParse(id))
+        .whereType<int>()
+        .toList();
+    final doctorUserIds = doctorIds
+        .where((id) => int.tryParse(id) == null)
+        .toList();
+
+    if (doctorIds.isEmpty) return rows;
+
+    try {
+      // 1. Fetch doctor rows from Supabase 
+      final doctorRowsById = doctorTableIds.isEmpty
+          ? <Map<String, dynamic>>[]
+          : List<Map<String, dynamic>>.from(
+              await supabase
+                  .from('doctors')
+                  .select('id, user_id, specialty, healthpost_name')
+                  .inFilter('id', doctorTableIds),
+            );
+      final doctorRowsByUserId = doctorUserIds.isEmpty
+          ? <Map<String, dynamic>>[]
+          : List<Map<String, dynamic>>.from(
+              await supabase
+                  .from('doctors')
+                  .select('id, user_id, specialty, healthpost_name')
+                  .inFilter('user_id', doctorUserIds),
+            );
+      final doctorRows = <Map<String, dynamic>>[
+        ...doctorRowsById,
+        ...doctorRowsByUserId,
+      ];
+
+      final doctorList = <Map<String, dynamic>>[
+        for (final doctor in doctorRows)
+          if ((doctor['id']?.toString() ?? '').isNotEmpty) doctor,
+      ];
+
+      // 2. Fetch user_profiles for each doctor's user_id
+      final userIds = doctorList
+          .map((row) => row['user_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+      final profileRows = userIds.isEmpty
+          ? <Map<String, dynamic>>[]
+          : List<Map<String, dynamic>>.from(
+              await supabase
+                  .from('user_profiles')
+                  .select('id, full_name, avatar_url')
+                  .inFilter('id', userIds),
+            );
+
+      final profileLookup = <String, Map<String, dynamic>>{
+        for (final row in profileRows) row['id'].toString(): row,
+      };
+
+      // 3. Identify doctors missing profiles (to fallback to FastAPI)
+      final missingProfileDoctorIds = doctorList
+          .where((doc) {
+            final uid = doc['user_id']?.toString() ?? '';
+            final profile = profileLookup[uid];
+            return profile == null ||
+                (profile['full_name']?.toString() ?? '').isEmpty;
+          })
+          .map((doc) => doc['id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList();
+
+      // 4. Fallback: fetch missing doctor names from FastAPI
+      final apiDoctorNames = <String, String>{};
+      for (final doctorId in missingProfileDoctorIds) {
+        try {
+          final res = await dio.get('/doctors/$doctorId');
+          final data = res.data as Map<String, dynamic>;
+          // Try to extract full_name from various possible structures
+          String? name;
+          if (data['profile'] is Map) {
+            name = (data['profile'] as Map)['full_name']?.toString();
+          }
+          if (name == null && data['user_profiles'] is Map) {
+            name = (data['user_profiles'] as Map)['full_name']?.toString();
+          }
+          if (name == null) {
+            name = data['full_name']?.toString() ?? data['name']?.toString();
+          }
+          if (name != null && name.isNotEmpty && name != 'null') {
+            apiDoctorNames[doctorId] = name;
+          }
+        } catch (e) {
+          if (kDebugMode)
+            debugPrint('FastAPI fallback failed for doctor $doctorId: $e');
+        }
+      }
+
+      // 5. Build final lookup map
+      final doctorLookup = <String, Map<String, dynamic>>{};
+      for (final doctor in doctorList) {
+        final doctorId = doctor['id']?.toString() ?? '';
+        if (doctorId.isEmpty) continue;
+
+        final doctorUserId = doctor['user_id']?.toString() ?? '';
+        final profile = profileLookup[doctorUserId] ?? const {};
+        final apiName = apiDoctorNames[doctorId];
+
+        // Priority: user_profiles.full_name > FastAPI name > fallback
+        final resolvedName = (profile['full_name']?.toString() ?? '').isNotEmpty
+            ? profile['full_name']!.toString()
+            : (apiName != null && apiName.isNotEmpty)
+            ? apiName
+            : 'डाक्टर';
+
+        doctorLookup[doctorId] = {
+          'doctor_name': resolvedName,
+          'full_name': resolvedName,
+          'specialty': doctor['specialty']?.toString() ?? '',
+          'healthpost_name': doctor['healthpost_name']?.toString() ?? '',
+          'avatar_url': profile['avatar_url']?.toString(),
+        };
+        if (doctorUserId.isNotEmpty) {
+          doctorLookup[doctorUserId] = doctorLookup[doctorId]!;
+        }
+      }
+
+      // 6. Merge enriched data into each appointment
+      final enriched = rows.map((row) {
+        final doctorId = row['doctor_id']?.toString() ?? '';
+        final doctorData = doctorLookup[doctorId] ?? const <String, dynamic>{};
+        return {...row, ...doctorData};
+      }).toList();
+
+      if (kDebugMode) {
+        final unresolved = enriched
+            .where((row) => (row['doctor_name']?.toString() ?? '') == 'डाक्टर')
+            .map((row) => row['doctor_id']?.toString() ?? '')
+            .toSet()
+            .toList();
+        debugPrint(
+          '[$debugLabel] rows=${rows.length}, doctorIds=${doctorIds.length}, '
+          'doctorRows=${doctorList.length}, profileRows=${profileRows.length}, '
+          'fastApiFetched=${apiDoctorNames.length}, unresolved=$unresolved',
+        );
+      }
+
+      return enriched;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[$debugLabel] enrichment failed: $e');
+      return rows;
+    }
+  }
+
+
   /// Get upcoming appointments (next 7 days)
   static Future<List<Map<String, dynamic>>> getUpcomingAppointments() async {
     try {
@@ -184,13 +365,80 @@ class ApiService {
       params['province'] = province;
     }
     if (district != null) params['district'] = district;
-    if (municipality != null && municipality.isNotEmpty)
+    if (municipality != null && municipality.isNotEmpty) {
       params['municipality'] = municipality;
+    }
 
     final res = await dio.get('/doctors/', queryParameters: params);
-    return List<Map<String, dynamic>>.from(res.data);
+    final rows = List<Map<String, dynamic>>.from(res.data);
+    if (rows.isEmpty) return rows;
+
+    final supabase = Supabase.instance.client;
+    final userIds = rows
+        .map((row) => row['user_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (userIds.isEmpty) return rows;
+
+    try {
+      final profileRows = await supabase
+          .from('user_profiles')
+          .select('id, full_name, avatar_url, phone, email, province, district, municipality')
+          .inFilter('id', userIds);
+
+      final profileLookup = <String, Map<String, dynamic>>{
+        for (final row in List<Map<String, dynamic>>.from(profileRows))
+          row['id'].toString(): row,
+      };
+
+      final enriched = rows.map((row) {
+        final userId = row['user_id']?.toString() ?? '';
+        final profile = profileLookup[userId] ?? const <String, dynamic>{};
+        final rawProfiles = row['user_profiles'];
+        final existingProfile = rawProfiles is Map<String, dynamic>
+            ? rawProfiles
+            : rawProfiles is List && rawProfiles.isNotEmpty
+                ? Map<String, dynamic>.from(rawProfiles.first as Map)
+                : const <String, dynamic>{};
+        return {
+          ...row,
+          'full_name': profile['full_name']?.toString() ?? row['full_name'],
+          'avatar_url': profile['avatar_url']?.toString() ?? row['avatar_url'],
+          'user_profiles': {
+            ...existingProfile,
+            ...profile,
+          },
+        };
+      }).toList();
+
+      if (kDebugMode) {
+        final unresolved = enriched
+            .where((row) {
+              final name = row['full_name']?.toString() ??
+                  ((row['user_profiles'] as Map<String, dynamic>?)?['full_name']
+                          ?.toString() ??
+                      '');
+              return name.isEmpty || name == 'Unknown Doctor' || name == 'डाक्टर';
+            })
+            .map((row) => row['id']?.toString() ?? '')
+            .toList();
+        debugPrint(
+          '[fetchDoctors] rows=${rows.length}, profileRows=${profileLookup.length}, '
+          'unresolvedDoctorRows=$unresolved',
+        );
+      }
+
+      return enriched;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[fetchDoctors] profile enrichment failed: $e');
+      }
+      return rows;
+    }
   }
- 
+
   static String _handleError(DioException e) {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout) {

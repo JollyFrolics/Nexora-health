@@ -1,4 +1,6 @@
 
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -9,14 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:patient_app/app_constants.dart';
 import 'package:patient_app/appointment_screen.dart';
 import 'package:patient_app/emergency_callscreen.dart';
-
-
-
-
-
-
- 
-
+import 'package:patient_app/services/api_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -35,13 +30,18 @@ class _HomePageState extends State<HomePage> {
   List<AppointmentData> _recentAppointments = [];
   Stats _stats = const Stats(total: 0, thisMonth: 0, pending: 0);
 
+  List<Map<String, dynamic>> _upcomingRaw = [];
+  List<Map<String, dynamic>> _quickDoctors = [];
+  String _cancellingId = '';
+  bool _loadingDoctors = false;
+
   @override
   void initState() {
     super.initState();
     _loadAll();
+    _loadQuickDoctors();
   }
 
-  // ── Load everything in one go ─────────────────────────────────────────────
   Future<void> _loadAll() async {
     setState(() {
       _loading = true;
@@ -51,7 +51,7 @@ class _HomePageState extends State<HomePage> {
       final uid = _supa.auth.currentUser?.id;
       if (uid == null) throw Exception('Not authenticated');
 
-      // Parallel fetch: profile + appointments
+
       final results = await Future.wait([
         _supa
             .from('user_profiles')
@@ -66,9 +66,13 @@ class _HomePageState extends State<HomePage> {
             .limit(50),
       ]);
 
-      // ── Profile ───────────────────────────────────────────────────────────
-      final profileMap = results[0] as Map<String, dynamic>?;
+      try {
+        _upcomingRaw = await ApiService.getUpcomingAppointmentsEnriched();
+      } catch (_) {
+        _upcomingRaw = [];
+      }
 
+      final profileMap = results[0] as Map<String, dynamic>?;
       _profile = PatientProfile(
         id: '',
         userId: uid,
@@ -83,7 +87,6 @@ class _HomePageState extends State<HomePage> {
         avatar: profileMap?['avatar_url']?.toString() ?? '',
       );
 
-      // ── Get unique doctor_ids from appointments ────────────────────────────
       final apptRaw = results[1] as List<dynamic>;
       final doctorIds = apptRaw
           .map((e) => (e as Map<String, dynamic>)['doctor_id']?.toString())
@@ -91,7 +94,6 @@ class _HomePageState extends State<HomePage> {
           .toSet()
           .toList();
 
-      // ── Fetch specialty + healthpost for those doctors ────────────────────
       final Map<String, Map<String, dynamic>> doctorMap = {};
       if (doctorIds.isNotEmpty) {
         try {
@@ -106,16 +108,14 @@ class _HomePageState extends State<HomePage> {
               .toSet()
               .toList();
 
-          final profileRows =
-              userIds.isEmpty
-                  ? <dynamic>[]
-                  : await _supa
-                      .from('user_profiles')
-                      .select('id, full_name, avatar_url')
-                      .inFilter('id', userIds);
+          final profileRows = userIds.isEmpty
+              ? <dynamic>[]
+              : await _supa
+                    .from('user_profiles')
+                    .select('id, full_name, avatar_url')
+                    .inFilter('id', userIds);
           final profileList = List<Map<String, dynamic>>.from(profileRows);
           final doctorList = List<Map<String, dynamic>>.from(doctorRows);
-
           final profileLookup = <String, Map<String, dynamic>>{
             for (final row in profileList) row['id'].toString(): row,
           };
@@ -132,12 +132,9 @@ class _HomePageState extends State<HomePage> {
               'avatar_url': doctorProfile['avatar_url']?.toString(),
             };
           }
-        } catch (_) {
-          // Non-fatal — specialty/healthpost will show empty
-        }
+        } catch (_) {}
       }
 
-      // ── Parse appointments ────────────────────────────────────────────────
       final apptList = apptRaw
           .map((e) {
             final m = e as Map<String, dynamic>;
@@ -148,7 +145,6 @@ class _HomePageState extends State<HomePage> {
           .cast<AppointmentData>()
           .toList();
 
-      // Sort: upcoming first, then by date desc
       apptList.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
 
       final now = DateTime.now();
@@ -161,14 +157,20 @@ class _HomePageState extends State<HomePage> {
       _recentAppointments = apptList.take(5).toList();
 
       final monthStart = DateTime(now.year, now.month, 1);
+
+      final apiPendingCount = _upcomingRaw.length;
       _stats = Stats(
         total: apptList.length,
         thisMonth: apptList
             .where((a) => a.scheduledAt.isAfter(monthStart))
             .length,
-        pending: apptList
-            .where((a) => a.status == 'pending' || a.status == 'confirmed')
-            .length,
+        pending: apiPendingCount > 0
+            ? apiPendingCount
+            : apptList
+                  .where(
+                    (a) => a.status == 'pending' || a.status == 'confirmed',
+                  )
+                  .length,
       );
 
       setState(() => _loading = false);
@@ -177,6 +179,85 @@ class _HomePageState extends State<HomePage> {
         _error = e.toString();
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _loadQuickDoctors() async {
+    setState(() => _loadingDoctors = true);
+    try {
+      final doctors = await ApiService.fetchDoctors(specialty: '');
+      setState(() {
+        _quickDoctors = doctors.take(4).toList();
+        _loadingDoctors = false;
+      });
+    } catch (_) {
+      setState(() => _loadingDoctors = false);
+    }
+  }
+
+  Future<void> _cancelAppointment(
+    String appointmentId,
+    String doctorName,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'अपोइन्टमेन्ट रद्द गर्नुहोस्?',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'डा. $doctorName सँगको अपोइन्टमेन्ट रद्द गर्न चाहनुहुन्छ?',
+          style: const TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('नहोस्'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFB71C1C),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('रद्द गर्नुहोस्'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _cancellingId = appointmentId);
+    try {
+      await ApiService.cancelAppointment(appointmentId);
+      Get.snackbar(
+        'सफल',
+        'अपोइन्टमेन्ट रद्द गरियो।',
+        backgroundColor: Colors.green.shade50,
+        colorText: Colors.green.shade800,
+        snackPosition: SnackPosition.BOTTOM,
+        margin: const EdgeInsets.all(12),
+        borderRadius: 10,
+        duration: const Duration(seconds: 3),
+      );
+      _loadAll();
+    } catch (e) {
+      Get.snackbar(
+        'त्रुटि',
+        e.toString(),
+        backgroundColor: Colors.red.shade50,
+        colorText: Colors.red.shade800,
+        snackPosition: SnackPosition.BOTTOM,
+        margin: const EdgeInsets.all(12),
+        borderRadius: 10,
+      );
+    } finally {
+      setState(() => _cancellingId = '');
     }
   }
 
@@ -239,6 +320,14 @@ class _HomePageState extends State<HomePage> {
                     _buildNextAppointmentSection(),
                     const SizedBox(height: 20),
                     _buildStatsRow(),
+                    
+                    if (_upcomingRaw.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      _buildUpcomingApiSection(),
+                    ],
+                   
+                    const SizedBox(height: 24),
+                    _buildQuickDoctorsSection(),
                     const SizedBox(height: 24),
                     _buildRecentHeader(),
                     const SizedBox(height: 12),
@@ -254,7 +343,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ── AppBar ────────────────────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar() => AppBar(
     backgroundColor: AppConstants.primaryColor,
     elevation: 0,
@@ -287,7 +375,6 @@ class _HomePageState extends State<HomePage> {
       ],
     ),
     actions: [
-      // Notification bell placeholder
       IconButton(
         icon: const Icon(Icons.notifications_outlined, color: Colors.white),
         onPressed: () {},
@@ -295,7 +382,6 @@ class _HomePageState extends State<HomePage> {
     ],
   );
 
-  // ── Greeting ──────────────────────────────────────────────────────────────
   Widget _buildGreeting() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -318,8 +404,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-          // Avatar
-          if (_profile?.avatar != null)
+          if (_profile?.avatar != null && _profile!.avatar.isNotEmpty)
             CircleAvatar(
               radius: 22,
               backgroundImage: NetworkImage(_profile!.avatar),
@@ -347,8 +432,6 @@ class _HomePageState extends State<HomePage> {
       ),
     ],
   );
-
-  // ── Action Cards ──────────────────────────────────────────────────────────
   Widget _buildActionCards() => Row(
     children: [
       Expanded(
@@ -373,11 +456,8 @@ class _HomePageState extends State<HomePage> {
     ],
   );
 
-  // ── Next Appointment ──────────────────────────────────────────────────────
   Widget _buildNextAppointmentSection() {
-    if (_nextAppointment == null) {
-      return _buildNoUpcoming();
-    }
+    if (_nextAppointment == null) return _buildNoUpcoming();
     final a = _nextAppointment!;
     return GestureDetector(
       onTap: () => Get.to(() => AppointmentsScreen()),
@@ -395,7 +475,6 @@ class _HomePageState extends State<HomePage> {
         ),
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
               child: Row(
@@ -430,12 +509,10 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
-            // Doctor row
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  // Avatar
                   _DoctorAvatar(
                     name: a.doctorName,
                     avatarUrl: a.doctorAvatarUrl,
@@ -506,35 +583,72 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 14),
-            // Join button
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => Get.to(() => AppointmentsScreen()),
-                  icon: Icon(a.consultIcon, size: 18),
-                  label: Text(
-                    a.consultationType == 'video'
-                        ? 'भिडियो जोइन गर्नुहोस् / Join'
-                        : a.consultationType == 'audio'
-                        ? 'कल जोइन गर्नुहोस् / Join'
-                        : 'च्याट खोल्नुहोस् / Open Chat',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Get.to(() => AppointmentsScreen()),
+                      icon: Icon(a.consultIcon, size: 18),
+                      label: Text(
+                        a.consultationType == 'video'
+                            ? 'Join Video'
+                            : a.consultationType == 'audio'
+                            ? 'Join Call'
+                            : 'Open Chat',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppConstants.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
                     ),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                ),
+                  const SizedBox(width: 10),
+                  if (a.status == 'pending' || a.status == 'confirmed')
+                    _cancellingId == a.id
+                        ? const SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          )
+                        : OutlinedButton(
+                            onPressed: () =>
+                                _cancelAppointment(a.id, a.doctorName),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red.shade700,
+                              side: BorderSide(color: Colors.red.shade200),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 13,
+                                horizontal: 14,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'रद्द',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                ],
               ),
             ),
           ],
@@ -624,13 +738,298 @@ class _HomePageState extends State<HomePage> {
       const SizedBox(width: 12),
       _StatCard(
         value: '${_stats.pending}',
-        label: 'पर्खाइमा',
+        label: 'आउँदो',
         color: const Color(0xFFE65100),
       ),
     ],
   );
 
+  Widget _buildUpcomingApiSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'यो हप्ता अपोइन्टमेन्ट',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppConstants.primaryColor,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${_upcomingRaw.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 110,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _upcomingRaw.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) => _buildUpcomingApiCard(_upcomingRaw[i]),
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _buildUpcomingApiCard(Map<String, dynamic> appt) {
+    final id = appt['id']?.toString() ?? '';
+    final doctor = appt['doctor'];
+    final doctorMap = doctor is Map<String, dynamic> ? doctor : null;
+    final doctorProfile = doctorMap?['profile'];
+    final doctorProfileMap =
+        doctorProfile is Map<String, dynamic> ? doctorProfile : null;
+    final doctorName =
+        appt['doctor_name']?.toString() ??
+        appt['full_name']?.toString() ??
+        doctorMap?['full_name']?.toString() ??
+        doctorProfileMap?['full_name']?.toString() ??
+        appt['doctor']?.toString() ??
+        'डाक्टर';
+    final scheduledAt = appt['scheduled_at'] != null
+        ? DateTime.tryParse(appt['scheduled_at'].toString())?.toLocal()
+        : null;
+    final type = appt['consultation_type']?.toString() ?? 'audio';
+    final status = appt['status']?.toString() ?? 'pending';
+
+    final statusColor = status == 'confirmed'
+        ? Colors.green
+        : status == 'cancelled'
+        ? Colors.red
+        : Colors.orange;
+
+    return Container(
+      width: 190,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'डा. $doctorName',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (scheduledAt != null)
+            Text(
+              '${scheduledAt.day}/${scheduledAt.month} – ${scheduledAt.hour.toString().padLeft(2, '0')}:${scheduledAt.minute.toString().padLeft(2, '0')}',
+              style: TextStyle(fontSize: 12, color: AppConstants.primaryColor),
+            ),
+          const SizedBox(height: 4),
+          Text(
+            _consultTypeLabel(type),
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+          const Spacer(),
+          if (status == 'pending' || status == 'confirmed')
+            Align(
+              alignment: Alignment.centerRight,
+              child: _cancellingId == id
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    )
+                  : GestureDetector(
+                      onTap: () => _cancelAppointment(id, doctorName),
+                      child: Text(
+                        'रद्द गर्नुहोस्',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.red.shade600,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickDoctorsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'डाक्टर खोज्नुहोस्',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () => Get.to(() => const SimpleBookScreen()),
+              child: Text(
+                'सबै हेर्नुहोस्',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppConstants.primaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_loadingDoctors)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: CircularProgressIndicator(
+                color: AppConstants.primaryColor,
+                strokeWidth: 2,
+              ),
+            ),
+          )
+        else if (_quickDoctors.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Center(
+              child: Text(
+                'डाक्टर उपलब्ध छैनन्',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+              ),
+            ),
+          )
+        else
+          ...(_quickDoctors.map((d) => _buildDoctorListTile(d))),
+      ],
+    );
+  }
+
+  Widget _buildDoctorListTile(Map<String, dynamic> doctor) {
+    final name =
+        doctor['full_name']?.toString() ??
+        doctor['name']?.toString() ??
+        'डाक्टर';
+    final specialty = doctor['specialty']?.toString() ?? '';
+    final healthpost = doctor['healthpost_name']?.toString() ?? '';
+    final avatarUrl = doctor['avatar_url']?.toString();
+    final doctorId = doctor['id'];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _DoctorAvatar(name: name, avatarUrl: avatarUrl, size: 44),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'डा. $name',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                if (specialty.isNotEmpty)
+                  Text(
+                    specialty,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                if (healthpost.isNotEmpty)
+                  Text(
+                    healthpost,
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => Get.to(() => const SimpleBookScreen()),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppConstants.primaryColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'बुक',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildRecentHeader() => Row(
     children: [
@@ -657,7 +1056,6 @@ class _HomePageState extends State<HomePage> {
     ],
   );
 
-  // ── Recent Appointment Card ───────────────────────────────────────────────
   Widget _buildRecentCard(AppointmentData a) => Container(
     margin: const EdgeInsets.only(bottom: 10),
     padding: const EdgeInsets.all(14),
@@ -722,20 +1120,46 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-          decoration: BoxDecoration(
-            color: a.statusColor,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            a.statusLabel,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+              decoration: BoxDecoration(
+                color: a.statusColor,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                a.statusLabel,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-          ),
+            
+            if (a.status == 'pending' || a.status == 'confirmed') ...[
+              const SizedBox(height: 6),
+              _cancellingId == a.id
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    )
+                  : GestureDetector(
+                      onTap: () => _cancelAppointment(a.id, a.doctorName),
+                      child: Text(
+                        'रद्द',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.red.shade600,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+            ],
+          ],
         ),
       ],
     ),
@@ -837,7 +1261,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 }
- 
+
 
 class _ActionCard extends StatelessWidget {
   final IconData icon;
